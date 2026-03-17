@@ -1,0 +1,61 @@
+# ===== 模型权重（大文件，不上传）=====
+models/Qwen3-8B/
+models/Qwen3-Reranker-4B/
+models/BAAI/
+models/AI-ModelScope/
+models/text2vec-base-chinese/
+
+# ===== LLaMA-Factory 训练输出（大文件）=====
+LLaMA-Factory-main/saves/
+LLaMA-Factory-main/output/
+
+# ===== RAG-Retrieval 训练输出（大文件）=====
+RAG-Retrieval/rag_retrieval/train/reranker/output/
+RAG-Retrieval/rag_retrieval/train/**/output/
+
+# ===== 模型权重文件（通用）=====
+*.bin
+*.safetensors
+*.pt
+*.ckpt
+*.pth
+
+# ===== 向量数据库 / 索引文件 =====
+data/saved_index/milvus.db
+data/saved_index/*.pkl
+data/saved_index/faiss.db/
+
+# ===== MongoDB 数据文件 =====
+data/mongodb/
+mongodb-7.0.20/
+
+# ===== 日志 =====
+log/
+*.log
+
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+.venv/
+venv/
+env/
+
+# ===== macOS =====
+.DS_Store
+**/.DS_Store
+
+# ===== IDE =====
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ===== 临时文件 =====
+*.tmp
+*.bak
