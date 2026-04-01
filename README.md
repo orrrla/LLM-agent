@@ -39,13 +39,19 @@ Tesla_Manual.pdf
         │  去重 & 合并  │
         └──────┬───────┘
                ▼
+       ┌──────────────┐
+       │用户画像上下文 │  user_id -> profile + recent_turns
+       │(本地JSON存储) │  Query改写 + 软过滤重排
+       └──────┬───────┘
+              ▼
         ┌──────────────┐
         │   精排模型   │  BGE-M3 Reranker（微调后）
         │              │  / Qwen3-Reranker-4B
         └──────┬───────┘
                ▼
         ┌──────────────┐
-        │  LLM 生成    │  Qwen3-8B（LoRA SFT 微调 + INT4 量化）
+        │  LLM 生成    │  Prompt 注入 profile + recent_turns
+        │              │  Qwen3-8B（LoRA SFT 微调 + INT4 量化）
         │              │  通过 vLLM 本地部署
         └──────┬───────┘
                ▼
@@ -317,12 +323,16 @@ python final_score.py
 
 ```
 用户提问
+  → 读取用户画像（model_cfg/software_version）与最近对话记忆
+  → Query 改写（原始query + 改写query）
   → BM25 召回（Top-10）+ BGE-M3 向量召回（Top-10，RRF 融合）
   → 去重合并
+  → 画像软过滤重排（命中画像关键词加权，冲突词降权）
   → BGE-M3 Reranker 精排（Top-5）
-  → 构建 Prompt（含编号引用格式）
+  → 构建 Prompt（含编号引用 + 用户画像 + 最近对话）
   → Qwen3-8B 生成答案
   → 后处理（提取答案 + 引用编号）
+  → 写回最近对话记忆
   → 输出答案【引用1, 引用2, ...】
 ```
 
