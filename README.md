@@ -39,13 +39,19 @@ Tesla_Manual.pdf
         │  去重 & 合并  │
         └──────┬───────┘
                ▼
+       ┌──────────────┐
+       │用户画像上下文 │  user_id -> profile + recent_turns
+       │(本地JSON存储) │  Query改写 + 软过滤重排
+       └──────┬───────┘
+              ▼
         ┌──────────────┐
         │   精排模型   │  BGE-M3 Reranker（微调后）
         │              │  / Qwen3-Reranker-4B
         └──────┬───────┘
                ▼
         ┌──────────────┐
-        │  LLM 生成    │  Qwen3-8B（LoRA SFT 微调 + INT4 量化）
+        │  LLM 生成    │  Prompt 注入 profile + recent_turns
+        │              │  Qwen3-8B（LoRA SFT 微调 + INT4 量化）
         │              │  通过 vLLM 本地部署
         └──────┬───────┘
                ▼
@@ -186,6 +192,76 @@ python infer.py
 
 ---
 
+## 用户画像MVP优化（已实现）
+
+本项目已实现一版不重建索引的用户画像增强能力，目标是提升多轮问答和车型相关问题的一致性。
+
+### 能力概览
+
+- **轻量画像存储**：新增 `src/profile/user_profile_store.py`，维护 `user_id -> profile + recent_turns`
+  - `profile` 字段：`model_cfg`、`software_version`、`updated_at`
+  - `recent_turns`：最近多轮问答窗口（默认 5 轮）
+- **检索前 Query 改写**：新增 `src/profile/context_engineering.py`
+  - 基于用户画像与最近一轮问题，对省略主语/代词问题做补全
+  - 保留原始 query，执行“原 query + 改写 query”双路召回
+- **画像软过滤重排**：在 `infer.py` 中，`merge_docs` 后、`reranker` 前加入 profile-aware 软打分
+  - 命中画像关键词（车型/版本）轻量加权
+  - 存在明显车型冲突词时轻量降权
+- **生成阶段上下文注入**：扩展 `request_chat()`，将画像与最近对话注入提示词
+  - 文件：`src/client/llm_local_client.py`
+  - 规则：回答优先参考画像；画像缺失或冲突时先做简短澄清
+
+### 开关与配置（环境变量）
+
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| `ENABLE_USER_PROFILE` | `1` | 是否启用用户画像能力 |
+| `ENABLE_PROFILE_SOFT_FILTER` | `1` | 是否启用画像软过滤重排 |
+| `USER_PROFILE_STORE_PATH` | `./data/user_profile_store.json` | 画像与记忆持久化文件路径 |
+| `USER_MEMORY_WINDOW` | `5` | 最近对话窗口大小 |
+
+示例：
+
+```bash
+export ENABLE_USER_PROFILE=1
+export ENABLE_PROFILE_SOFT_FILTER=1
+export USER_PROFILE_STORE_PATH=./data/user_profile_store.json
+export USER_MEMORY_WINDOW=5
+python infer.py
+```
+
+### 交互变化（`infer.py`）
+
+`infer.py` 启动后会先询问用户ID，并可选输入画像字段：
+
+- 用户 ID（默认 `default_user`）
+- 车型/版本画像（可留空）
+- 软件版本画像（可留空）
+
+随后进入问答循环；每轮回答后自动写入最近对话记忆。
+
+### 回归验证
+
+新增脚本：`scripts/profile_mvp_smoke_test.py`
+
+```bash
+python scripts/profile_mvp_smoke_test.py
+```
+
+该脚本用于快速验证：
+- query 改写是否生效
+- 画像软过滤排序是否符合预期
+
+### 实现提交记录
+
+用户画像MVP采用 3 次小提交，便于回滚和审计：
+
+- `feat: add user profile and memory store`
+- `feat: add profile-aware query rewrite and soft rerank`
+- `feat: inject profile context into answer generation`
+
+---
+
 ## 模型微调
 
 ### Reranker 微调（BGE-M3）
@@ -247,12 +323,16 @@ python final_score.py
 
 ```
 用户提问
+  → 读取用户画像（model_cfg/software_version）与最近对话记忆
+  → Query 改写（原始query + 改写query）
   → BM25 召回（Top-10）+ BGE-M3 向量召回（Top-10，RRF 融合）
   → 去重合并
+  → 画像软过滤重排（命中画像关键词加权，冲突词降权）
   → BGE-M3 Reranker 精排（Top-5）
-  → 构建 Prompt（含编号引用格式）
+  → 构建 Prompt（含编号引用 + 用户画像 + 最近对话）
   → Qwen3-8B 生成答案
   → 后处理（提取答案 + 引用编号）
+  → 写回最近对话记忆
   → 输出答案【引用1, 引用2, ...】
 ```
 
