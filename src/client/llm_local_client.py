@@ -11,8 +11,15 @@ LLM_CHAT_PROMPT = """
 ### 信息
 {context}
 
+### 用户画像
+{profile_context}
+
+### 最近对话
+{recent_turns_context}
+
 ### 任务
 你是特斯拉电动汽车Model 3车型的用户手册问答系统，你具备{{信息}}中的知识。
+回答时优先参考用户画像。若问题依赖车型配置但画像缺失或冲突，先给出简短澄清再回答。
 请回答问题"{query}"，答案需要精准，语句通顺，并严格按照以下格式输出
 
 {{答案}}【{{引用编号1}}, {{引用编号2}}, ...】
@@ -26,9 +33,43 @@ llm_client = OpenAI(
 )
 
 
-def request_chat(query, context, stream=False):
+def _build_profile_context(profile):
+    if not profile:
+        return "无"
+    model_cfg = profile.get("model_cfg", "").strip()
+    software_version = profile.get("software_version", "").strip()
+    parts = []
+    if model_cfg:
+        parts.append(f"车型/版本: {model_cfg}")
+    if software_version:
+        parts.append(f"软件版本: {software_version}")
+    if not parts:
+        return "无"
+    return "; ".join(parts)
 
-    prompt = LLM_CHAT_PROMPT.format(context=context, query=query) 
+
+def _build_recent_turns_context(recent_turns, max_turns=3):
+    if not recent_turns:
+        return "无"
+    clipped = recent_turns[-max_turns:]
+    rows = []
+    for idx, turn in enumerate(clipped, 1):
+        q = turn.get("query", "").strip()
+        a = turn.get("answer", "").strip()
+        rows.append(f"{idx}. 问: {q} | 答: {a}")
+    return "\n".join(rows)
+
+
+def request_chat(query, context, stream=False, profile=None, recent_turns=None):
+    profile_context = _build_profile_context(profile)
+    recent_turns_context = _build_recent_turns_context(recent_turns)
+
+    prompt = LLM_CHAT_PROMPT.format(
+        context=context,
+        query=query,
+        profile_context=profile_context,
+        recent_turns_context=recent_turns_context,
+    )
 
     completion = llm_client.chat.completions.create(
         model=qwen3_8b_tune_model_name,

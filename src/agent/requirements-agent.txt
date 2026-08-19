@@ -1,0 +1,2 @@
+# Agentic RAG intentionally reuses the runtime dependencies already listed in the
+# repository root requirements.txt. No additional hard dependency is required.
