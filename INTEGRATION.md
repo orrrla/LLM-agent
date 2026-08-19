@@ -28,6 +28,21 @@ The slices only import one another through stable interfaces. The final fusion
 point is the `retrieve_node` in `src/agent/nodes.py`, which can later call
 `src.vision.page_retriever.PageRetriever` and `src.vision.fusion.fuse_results`.
 
+## Enable Mem0 Memory
+
+Set `ENABLE_MEM0=1` and provide `MEM0_CONFIG_JSON`, then run:
+
+```bash
+export ENABLE_MEM0=1
+export MEM0_API_KEY="your-api-key"
+export MEM0_CONFIG_JSON='{"llm":{"provider":"openai","config":{"model":"gpt-4o-mini"}}}'
+
+python agent_infer.py --memory-backend mem0 --query "怎么打开离车后自动上锁"
+```
+
+The `memory_node` is inserted before query rewriting and injects relevant
+Mem0 memories into the LLM prompt through `llm_local_client.request_chat`.
+
 ## Validate The Slices
 
 ```bash

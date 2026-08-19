@@ -17,6 +17,9 @@ LLM_CHAT_PROMPT = """
 ### 最近对话
 {recent_turns_context}
 
+### 长期记忆
+{memory_context}
+
 ### 任务
 你是特斯拉电动汽车Model 3车型的用户手册问答系统，你具备{{信息}}中的知识。
 回答时优先参考用户画像。若问题依赖车型配置但画像缺失或冲突，先给出简短澄清再回答。
@@ -60,15 +63,30 @@ def _build_recent_turns_context(recent_turns, max_turns=3):
     return "\n".join(rows)
 
 
-def request_chat(query, context, stream=False, profile=None, recent_turns=None):
+def _build_memory_context(memory_context):
+    if not memory_context:
+        return "无"
+    return str(memory_context)
+
+
+def request_chat(
+    query,
+    context,
+    stream=False,
+    profile=None,
+    recent_turns=None,
+    memory_context=None,
+):
     profile_context = _build_profile_context(profile)
     recent_turns_context = _build_recent_turns_context(recent_turns)
+    memory_context_text = _build_memory_context(memory_context)
 
     prompt = LLM_CHAT_PROMPT.format(
         context=context,
         query=query,
         profile_context=profile_context,
         recent_turns_context=recent_turns_context,
+        memory_context=memory_context_text,
     )
 
     completion = llm_client.chat.completions.create(

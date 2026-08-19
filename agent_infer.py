@@ -17,8 +17,10 @@ from src.agent import nodes
 from src.observability.tracer import Tracer
 
 
-def build_graph() -> AgentGraph:
+def build_graph(enable_mem0: bool = False) -> AgentGraph:
     graph = AgentGraph()
+    if enable_mem0:
+        graph.add_node("memory", nodes.memory_node)
     graph.add_node("rewrite", nodes.rewrite_node)
     graph.add_node("route", nodes.route_node)
     graph.add_node("retrieve", nodes.retrieve_node)
@@ -61,6 +63,12 @@ def main() -> None:
     parser.add_argument("--user-id", default="default_user")
     parser.add_argument("--profile-json", help="optional profile JSON file")
     parser.add_argument(
+        "--memory-backend",
+        choices=["none", "mem0"],
+        default=os.environ.get("MEMORY_BACKEND", "none"),
+        help="long-term memory backend",
+    )
+    parser.add_argument(
         "--route-only",
         action="store_true",
         help="only run the deterministic router, without loading model/database dependencies",
@@ -69,6 +77,9 @@ def main() -> None:
     args = parser.parse_args()
 
     profile = load_profile(args.profile_json)
+    use_mem0 = args.memory_backend == "mem0" or os.environ.get("ENABLE_MEM0") == "1"
+    if use_mem0:
+        os.environ["ENABLE_MEM0"] = "1"
 
     if args.route_only:
         if not args.query:
@@ -76,7 +87,7 @@ def main() -> None:
         route_only(args.query, profile)
         return
 
-    graph = build_graph()
+    graph = build_graph(enable_mem0=use_mem0)
     state = ChatState(
         user_id=args.user_id,
         query=args.query or "",

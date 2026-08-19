@@ -25,6 +25,8 @@ EXPECTED_FILES = [
     "src/vision/page_retriever.py",
     "src/vision/vlm_caption.py",
     "src/vision/fusion.py",
+    "src/memory/__init__.py",
+    "src/memory/mem0_store.py",
     "src/eval/__init__.py",
     "src/eval/schemas.py",
     "src/eval/golden_loader.py",
@@ -50,6 +52,7 @@ def main() -> int:
     package_dirs = [
         ROOT / "src" / "agent",
         ROOT / "src" / "vision",
+        ROOT / "src" / "memory",
         ROOT / "src" / "eval",
         ROOT / "src" / "observability",
     ]

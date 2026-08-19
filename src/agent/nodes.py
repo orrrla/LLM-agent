@@ -54,6 +54,43 @@ def rewrite_node(state: ChatState) -> dict[str, Any]:
     }
 
 
+def memory_node(state: ChatState) -> dict[str, Any]:
+    """Load relevant long-term memories when Mem0 mode is enabled."""
+
+    if os.environ.get("ENABLE_MEM0", "0") != "1":
+        return {
+            "tool_results": _merge_tool_results(state, memory={"skipped": True}),
+        }
+
+    try:
+        from src.memory.mem0_store import Mem0MemoryStore
+    except Exception as exc:  # pragma: no cover - depends on host environment
+        raise RuntimeError("memory_node unavailable: Mem0 module failed to import") from exc
+
+    store = Mem0MemoryStore(user_id=state.user_id)
+    memories = store.search(state.query or state.rewritten_query or "", limit=5)
+    memory_context = "\n".join(
+        f"- {record.memory}" for record in memories if record.memory
+    )
+    recent_turns = list(state.recent_turns or [])
+    recent_turns.extend(
+        {"query": record.memory, "answer": ""} for record in memories if record.memory
+    )
+
+    return {
+        "memory_context": memory_context or "无",
+        "recent_turns": recent_turns[-5:],
+        "tool_results": _merge_tool_results(
+            state,
+            memory={
+                "enabled": True,
+                "record_count": len(memories),
+                "user_id": state.user_id,
+            },
+        ),
+    }
+
+
 def route_node(state: ChatState) -> dict[str, Any]:
     """Classify the query and attach an optional clarification question."""
 
@@ -289,6 +326,7 @@ def generate_node(state: ChatState) -> dict[str, Any]:
             stream=False,
             profile=state.profile or {},
             recent_turns=state.recent_turns or [],
+            memory_context=state.memory_context,
         )
     except Exception as exc:
         raise RuntimeError(f"local LLM request failed for query {used_query!r}") from exc

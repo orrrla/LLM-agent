@@ -17,6 +17,7 @@ class ChatState:
     tool_results: dict[str, Any] = field(default_factory=dict)
     text_docs: list[Any] = field(default_factory=list)
     visual_docs: list[dict[str, Any]] = field(default_factory=list)
+    memory_context: str = ""
     answer: str = ""
     citations: list[str] = field(default_factory=list)
     confidence: float = 1.0
