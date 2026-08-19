@@ -1,0 +1,5 @@
+# This module has no mandatory third-party runtime dependencies.
+#
+# If a deployment replaces the stub Langfuse client with the real SDK,
+# add the package here (or keep the stub and use the exporter hook):
+# langfuse>=2.0.0

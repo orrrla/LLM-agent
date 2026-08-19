@@ -1,0 +1,19 @@
+# PDF rendering
+PyMuPDF>=1.24,<2
+
+# Milvus page index and retrieval
+pymilvus>=2.5,<3
+
+# OpenAI-compatible vision captioning
+openai>=1.30,<2
+
+# ColPali inference
+torch>=2.1
+transformers>=4.45
+accelerate>=0.33
+Pillow>=10
+numpy>=1.26
+
+# Optional: some ColPali checkpoints are easier to load through colpali-engine.
+# This module uses transformers.AutoProcessor/AutoModel by default.
+# colpali-engine>=0.3,<1
